@@ -19,6 +19,10 @@ df.show()
 
 # COMMAND ----------
 
+
+
+# COMMAND ----------
+
 df = df.select("id", "title", "content")
 
 # COMMAND ----------
@@ -60,7 +64,7 @@ tokenized.withColumn('tokens', count_tokens(col('words'))).show()
 
 # COMMAND ----------
 
-regex_tokenizer= RegexTokenizer(inputCol='content', outputCol='words',pattern='[^a-zA-Z0-9]+').setMinTokenLength(2)
+regex_tokenizer= RegexTokenizer(inputCol='content', outputCol='words',pattern='[^a-zA-Z1-9]+').setMinTokenLength(2)
 df=df.fillna("unknown", subset=["content","title"])
 rg_tokenized = regex_tokenizer.transform(df)
 
@@ -91,43 +95,46 @@ final_df = remover.transform(rg_tokenized).select(col('id'), col('title'), col('
 # COMMAND ----------
 
 final_df.show()
+final_df.schema
 
 # COMMAND ----------
 
-from pyspark.ml.feature import HashingTF, IDF
+import pyspark.sql.functions as f
 
 # COMMAND ----------
 
-hashing_tf = HashingTF(inputCol='words', outputCol='rawFeatures')
+wordcounts_DF = final_df.select("id", f.explode("words").alias("words")).groupBy("id", "words").count().groupBy("id").agg(f.collect_list(f.struct(f.col("words"), f.col("count"))).alias("words"))
 
 # COMMAND ----------
 
-featurized_data = hashing_tf.transform(final_df)
-featurized_data.cache
+wordcounts_DF = final_df.select("id", f.explode("words").alias("words")).groupBy("id","words").count().groupBy("words").agg(f.collect_list(f.struct(f.col("id"), f.col("count"))).alias("wordcounts"))
 
 # COMMAND ----------
 
-featurized_data.show()
+from pyspark.sql.functions import asc
+indice_inverso = wordcounts_DF.orderBy("words").sort(asc("words"))
 
 # COMMAND ----------
 
-idf = IDF(inputCol='rawFeatures', outputCol='features')
+indice_inverso.dtypes
 
 # COMMAND ----------
 
-idf_model = idf.fit(featurized_data)
+indice_inverso.show(1000000)
 
 # COMMAND ----------
 
-rescaled_data = idf_model.transform(featurized_data)
+dbutils.widgets.text("palabra","Inserte palabra"," ")
 
 # COMMAND ----------
 
-ii_df = rescaled_data.select("id","title","words","features")
-
-# COMMAND ----------
-
-ii_df.first()
+word_df = indice_inverso.filter(indice_inverso['words'] == dbutils.widgets.get("palabra"))
+row = word_df.collect()
+id_counts =row[0].wordcounts
+id_counts = sorted(id_counts, key=lambda x: x[1])
+row_id_array = list(reversed(id_counts))[:5]
+for x in range (0,5):
+  print(final_df.filter(final_df['id'] == row_id_array[x][0]).collect()[0].title)
 
 # COMMAND ----------
 
