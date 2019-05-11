@@ -1,3 +1,5 @@
+Video de Sustentaciòn: https://www.youtube.com/watch?v=e7JBPLJWJ-M
+
 Proyecto 3 Big Data Spark
 
 Este proyecto consistió en utilizar Apache Spark para realizar varias consultas sobre un dataset de noticias, en este readme se describe el proceso de diseño e implementación de del análisis. 
